@@ -2,6 +2,19 @@ mod common;
 
 use crate::common::*;
 
+pub fn load_annotation_file(path: impl AsRef<Path>) -> Result<Vec<Annotation>> {
+    let annotations: Vec<_> = io::BufReader::new(fs::File::open(path)?)
+        .lines()
+        .map(|line| -> Result<_> {
+            let line = line?;
+            let ann: Annotation = serde_scan::from_str(&line)?;
+            Ok(ann)
+        })
+        .try_collect()?;
+
+    Ok(annotations)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Annotation {
     pub x1: R64,
@@ -92,21 +105,35 @@ mod serde_zero_one_bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{
-        fs,
-        io::{self, prelude::*},
-    };
 
     #[test]
     fn test() -> Result<()> {
-        let path = "/mnt/bbf98471-db16-4e2e-99df-ccd245253072/dota-dataset/train/labelTxt-v1.0/Train_Task2_gt/trainset_reclabelTxt/P0000.txt";
-        let lines = io::BufReader::new(fs::File::open(path)?).lines();
+        let dir = "/mnt/bbf98471-db16-4e2e-99df-ccd245253072/dota-dataset/train/labelTxt-v1.0/Train_Task2_gt/trainset_reclabelTxt";
 
-        for line in lines {
-            let line = line?;
-            let ann: Annotation = serde_scan::from_str(&line)?;
-            dbg!(&ann);
-        }
+        let annotations: Vec<_> = glob::glob(&format!("{}/*.txt", dir))?
+            .map(|path| -> Result<_> {
+                let path = path?;
+                let annotations = load_annotation_file(path)?;
+                Ok(annotations)
+            })
+            .try_collect()?;
+
+        let counts: counter::Counter<_> = annotations
+            .into_iter()
+            .flatten()
+            .map(|ann| ann.category)
+            .collect();
+
+        dbg!(&counts);
+        let total_count: usize = counts.values().cloned().sum();
+
+        counts.iter().for_each(|(cat, &count)| {
+            eprintln!(
+                "{:?}\t{:3.2}%",
+                cat,
+                count as f64 / total_count as f64 * 100.0
+            );
+        });
 
         Ok(())
     }

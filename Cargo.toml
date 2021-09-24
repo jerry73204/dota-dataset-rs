@@ -7,7 +7,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.44"
+itertools = "0.10.1"
 noisy_float = { version = "0.2.0", features = ["serde"] }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_plain = "1.0.0"
 serde_scan = "0.4.1"
+
+[dev-dependencies]
+counter = "0.5.2"
+glob = "0.3.0"
